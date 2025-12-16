@@ -1,27 +1,28 @@
 <?php
-include ('../db/db.php');
+include_once ('../models/Database.php');
+include_once ('../models/User.php');
 
-$login = trim($_POST['login']);
-$fio_user = trim($_POST['fio_user']);
-$number = trim($_POST['number']);
-$password = $_POST['password'];
+// Создаем подключение к базе данных
+$database = new Database();
+$db = $database->getConnection();
 
-if (empty($login) || empty($fio_user) || empty($number) || empty($password)) {
-    die("Все поля обязательны для заполнения.");
+// Создаем объект пользователя
+$user = new User($db);
+
+// Получаем данные из формы регистрации
+$user->login = trim($_POST['login']);
+$user->password = $_POST['password'];
+$user->fio_user = trim($_POST['fio_user']);
+$user->number = trim($_POST['number']);
+
+// Проверка на пустые поля
+if (empty($user->login) || empty($user->password) || empty($user->fio_user) || empty($user->number)) {
+    die("Пожалуйста, заполните все поля.");
 }
 
-$passwordHash = password_hash($password, PASSWORD_BCRYPT);
-
-// Подготовленное выражение
-$stmt = $conn->prepare("INSERT INTO users (login, fio_user, number, password) VALUES (?, ?, ?, ?)");
-$stmt -> bind_param("ssss", $login, $fio_user, $number, $passwordHash);
-
-if ($stmt -> execute()) {
+// Регистрируем пользователя
+if ($user->register()) {
     header("Location: ./login.php");
-    exit;
 } else {
-    echo "Error: " . $stmt->error;
+    echo "Ошибка: Не удалось зарегистрировать пользователя.";
 }
-
-$stmt -> close();
-$conn -> close();

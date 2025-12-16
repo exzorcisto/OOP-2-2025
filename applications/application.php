@@ -1,34 +1,44 @@
 <?php
+// applications/application.php
 session_start();
-include('../db/db.php');
+// Подключаем классы
+include_once '../models/Database.php';
+include_once '../models/Course.php';
+include_once '../models/Review.php';
+include_once '../models/Application.php';
 
 // Проверка авторизации
 if (!isset($_SESSION['user_id'])) {
-    die("Пожалуйста, <a href='../auth/login.php'>войдите</a> в систему.");
+    header("Location: ../auth/login.php");
+    exit;
 }
 
+// Создание объектов
+$database = new Database();
+$db = $database->getConnection();
+$course = new Course($db);
+$review_obj = new Review($db);
+$application_obj = new Application($db);
+
+// Сообщение о результате операции (если оно было установлено ранее)
+$message = null;
+
 // ===============================================
-// 1. ФУНКЦИЯ ОТОБРАЖЕНИЯ ОТЗЫВОВ (оставляем без изменений)
+// 1. ФУНКЦИЯ ОТОБРАЖЕНИЯ ОТЗЫВОВ (ООП)
 // ===============================================
 
-function display_reviews($conn, $course_id)
+function display_reviews($review_obj, $course_id)
 {
-    // ... (код функции display_reviews остается прежним) ...
+    // Устанавливаем ID курса для выборки
+    $review_obj->course_id = $course_id;
+    $stmt = $review_obj->getReviewsByCourseId();
+    $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     echo '<h2>Отзывы о курсе</h2>';
 
-    // Запрос с JOIN для получения имени пользователя и текста отзыва
-    $review_sql = "SELECT r.rating, r.comment, u.fio_user 
-                   FROM reviews r 
-                   JOIN users u ON r.user_id = u.id 
-                   WHERE r.course_id = ?";
-    $stmt = $conn->prepare($review_sql);
-    $stmt->bind_param("i", $course_id);
-    $stmt->execute();
-    $reviews = $stmt->get_result();
-
-    if ($reviews->num_rows > 0) {
+    if (count($reviews) > 0) {
         echo '<ul class="review-list">';
-        while ($review = $reviews->fetch_assoc()) {
+        foreach ($reviews as $review) {
             echo '<li>';
             echo '<strong>' . htmlspecialchars($review['fio_user']) . '</strong> (Оценка: ' . str_repeat('⭐', $review['rating']) . '): ';
             echo htmlspecialchars($review['comment']);
@@ -40,54 +50,41 @@ function display_reviews($conn, $course_id)
     }
 }
 
-
 // ===============================================
-// 2. ОБРАБОТКА POST (ОТПРАВКА ЗАЯВКИ)
+// 2. ОБРАБОТКА POST (ОТПРАВКА ЗАЯВКИ ИЛИ ОБНОВЛЕНИЕ ОТЗЫВОВ)
 // ===============================================
 
-$message = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-// Если форма отправлена И действие = 'submit_application' (пользователь нажал кнопку)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_application') {
-    $user_id = $_SESSION['user_id'];
-    $course_id = $_POST['course_id'];
+    $application_obj->course_id = $_POST['course_id'];
 
-    // Проверка, нет ли уже активной заявки на этот курс
-    $check_stmt = $conn->prepare("SELECT id FROM applications WHERE user_id = ? AND course_id = ? AND status IN ('pending', 'approved')");
-    $check_stmt->bind_param("ii", $user_id, $course_id);
-    $check_stmt->execute();
-    $check_result = $check_stmt->get_result();
+    if (isset($_POST['action']) && $_POST['action'] === 'submit_application') {
+        // --- Логика отправки заявки ---
+        $application_obj->user_id = $_SESSION['user_id'];
 
-    if ($check_result->num_rows == 0) {
-        $stmt = $conn->prepare("INSERT INTO applications (user_id, course_id) VALUES (?, ?)");
-        $stmt->bind_param("ii", $user_id, $course_id);
-
-        if ($stmt->execute()) {
+        if ($application_obj->checkActiveApplication()) {
+            $message = "⚠️ У вас уже есть активная заявка на этот курс.";
+        } elseif ($application_obj->create()) {
             $message = "✅ Заявка успешно отправлена и ожидает рассмотрения!";
         } else {
-            $message = "❌ Ошибка при отправке заявки: " . $conn->error;
+            $message = "❌ Ошибка при отправке заявки.";
         }
-    } else {
-        $message = "⚠️ У вас уже есть активная заявка на этот курс.";
     }
+    // Если action == update_reviews, мы просто переходим к п.3, 
+    // чтобы обновился $selected_course_id и отобразились отзывы.
 }
-
 
 // ===============================================
 // 3. ПОЛУЧЕНИЕ ДАННЫХ ДЛЯ ВЫВОДА
 // ===============================================
 
 // Получаем список курсов
-$courses_result = $conn->query("SELECT * FROM courses");
-$courses = [];
-while ($row = $courses_result->fetch_assoc()) {
-    $courses[] = $row;
-}
+$course_stmt = $course->readAll();
+$courses = $course_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-
-// Определяем, какой курс отображать: либо выбранный, либо первый по умолчанию
 $selected_course_id = null;
 if (!empty($courses)) {
+    // Определяем ID выбранного курса (для отображения отзывов)
     if (isset($_POST['course_id'])) {
         $selected_course_id = $_POST['course_id'];
     } else {
@@ -106,7 +103,7 @@ if (!empty($courses)) {
     <link rel="stylesheet" href="../css/style.css">
     <script>
         function updateReviews() {
-            // Отправляет форму "update_reviews"
+            // Отправляет форму "update-form"
             document.getElementById('update-form').submit();
         }
     </script>
@@ -114,7 +111,7 @@ if (!empty($courses)) {
 
 <body>
     <header>
-        <h1>Подать заявку на курс</h1>
+        <h1>Подача заявки на курс</h1>
     </header>
     <a href="../index.php">На главную</a>
 
@@ -155,10 +152,9 @@ if (!empty($courses)) {
 
     <?php
     if ($selected_course_id) {
-        display_reviews($conn, $selected_course_id);
+        display_reviews($review_obj, $selected_course_id);
     }
     ?>
-
 </body>
 
 </html>

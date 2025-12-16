@@ -1,6 +1,10 @@
 <?php
+// profile.php
 session_start();
-include('./db/db.php');
+// Подключаем классы
+include_once './models/Database.php';
+include_once './models/Application.php';
+include_once './models/Review.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: ./auth/login.php");
@@ -9,34 +13,23 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Запрос 1: Получение заявок пользователя
-$app_sql = "SELECT 
-                c.title AS course_title, 
-                a.status,
-                a.created_at 
-            FROM applications a 
-            JOIN courses c ON a.course_id = c.id 
-            WHERE a.user_id = ?
-            ORDER BY a.created_at DESC";
-$app_stmt = $conn->prepare($app_sql);
-$app_stmt->bind_param("i", $user_id);
-$app_stmt->execute();
-$applications = $app_stmt->get_result();
+// 1. Создание объектов
+$database = new Database();
+$db = $database->getConnection();
 
-// Запрос 2: Получение отзывов пользователя
-$rev_sql = "SELECT 
-                c.title AS course_title, 
-                r.rating, 
-                r.comment,
-                r.created_at 
-            FROM reviews r 
-            JOIN courses c ON r.course_id = c.id 
-            WHERE r.user_id = ?
-            ORDER BY r.created_at DESC";
-$rev_stmt = $conn->prepare($rev_sql);
-$rev_stmt->bind_param("i", $user_id);
-$rev_stmt->execute();
-$reviews = $rev_stmt->get_result();
+$application = new Application($db);
+$application->user_id = $user_id;
+
+$review = new Review($db);
+$review->user_id = $user_id;
+
+// 2. Получение данных
+$app_stmt = $application->getApplicationsByUserId();
+$applications_list = $app_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$rev_stmt = $review->getReviewsByUserId();
+$reviews_list = $rev_stmt->fetchAll(PDO::FETCH_ASSOC);
+
 ?>
 
 <!DOCTYPE html>
@@ -60,13 +53,13 @@ $reviews = $rev_stmt->get_result();
             <th>Статус</th>
             <th>Дата подачи</th>
         </tr>
-        <?php while ($row = $applications->fetch_assoc()): ?>
+        <?php foreach ($applications_list as $row): ?>
             <tr>
                 <td><?= htmlspecialchars($row['course_title']) ?></td>
                 <td><strong><?= $row['status'] ?></strong></td>
                 <td><?= $row['created_at'] ?></td>
             </tr>
-        <?php endwhile; ?>
+        <?php endforeach; ?>
     </table>
 
     <h2>Мои отзывы</h2>
@@ -77,14 +70,14 @@ $reviews = $rev_stmt->get_result();
             <th>Отзыв</th>
             <th>Дата</th>
         </tr>
-        <?php while ($row = $reviews->fetch_assoc()): ?>
+        <?php foreach ($reviews_list as $row): ?>
             <tr>
                 <td><?= htmlspecialchars($row['course_title']) ?></td>
                 <td><?= $row['rating'] ?> ⭐</td>
                 <td><?= htmlspecialchars($row['comment']) ?></td>
                 <td><?= $row['created_at'] ?></td>
             </tr>
-        <?php endwhile; ?>
+        <?php endforeach; ?>
     </table>
 </body>
 

@@ -1,35 +1,36 @@
 <?php
+// admin/index.php (ООП версия)
 session_start();
-include('../db/db.php');
 
+// Подключаем классы
+include_once '../models/Database.php';
+include_once '../models/Application.php';
+
+// Проверка на админа
 if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 2) {
     die("Доступ запрещен");
 }
 
+// Создание объектов
+$database = new Database();
+$db = $database->getConnection();
+$application = new Application($db);
+
+
 // 1. Обработка действия (подтверждение завершения)
 if (isset($_POST['action']) && $_POST['action'] == 'complete' && isset($_POST['app_id'])) {
-    $app_id = $_POST['app_id'];
-    $stmt = $conn->prepare("UPDATE applications SET status = 'completed' WHERE id = ?");
-    $stmt->bind_param("i", $app_id);
-    $stmt->execute();
-    header("Location: index.php"); // Перезагружаем страницу после действия
-    exit;
+    $application->id = $_POST['app_id'];
+
+    if ($application->updateStatus('completed')) {
+        header("Location: index.php");
+        exit;
+    }
 }
 
 
-// 2. Запрос на получение всех заявок
-$sql = "SELECT 
-            a.id, 
-            u.fio_user, 
-            c.title AS course_title, 
-            a.status,
-            a.created_at 
-        FROM applications a 
-        JOIN users u ON a.user_id = u.id 
-        JOIN courses c ON a.course_id = c.id
-        ORDER BY a.created_at DESC";
-
-$result = $conn->query($sql);
+// 2. Получение всех заявок с деталями
+$stmt = $application->getAllApplicationsWithDetails();
+$applications_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -46,14 +47,7 @@ $result = $conn->query($sql);
     </header>
     <a href="../index.php">На главную</a>
     <table border="1">
-        <tr>
-            <th>ID</th>
-            <th>Пользователь</th>
-            <th>Курс</th>
-            <th>Статус</th>
-            <th>Действие</th>
-        </tr>
-        <?php while ($row = $result->fetch_assoc()): ?>
+        <?php foreach ($applications_list as $row): ?>
             <tr>
                 <td><?= $row['id'] ?></td>
                 <td><?= htmlspecialchars($row['fio_user']) ?></td>
@@ -71,8 +65,10 @@ $result = $conn->query($sql);
                     <?php endif; ?>
                 </td>
             </tr>
-        <?php endwhile; ?>
+        <?php endforeach; ?>
     </table>
 </body>
+
+</html>
 
 </html>

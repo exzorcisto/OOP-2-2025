@@ -17,12 +17,15 @@
         <h1>Регистрация</h1>
     </header>
     <a href="../index.php">Назад</a>
+    <?php if (isset($_GET['error'])): ?>
+        <p style="color: red;">Ошибка: <?= htmlspecialchars($_GET['error']) ?></p>
+    <?php endif; ?>
     <form action="./register_handler.php" method="post">
-        <input type="email" name="login" id="" placeholder="Email">
-        <input type="text" name="fio_user" id="" placeholder="Fio user">
-        <input type="text" name="number" id="" placeholder="Number">
-        <input type="password" name="password" id="" placeholder="Password">
-        <input type="submit" value="NEXT">
+        <input type="email" name="login" id="" placeholder="Email" required>
+        <input type="text" name="fio_user" id="" placeholder="FIO user" required>
+        <input type="text" name="number" id="" placeholder="Number" required>
+        <input type="password" name="password" id="" placeholder="Password" required>
+        <input type="submit" value="Зарегистрироваться">
     </form>
 </body>
 

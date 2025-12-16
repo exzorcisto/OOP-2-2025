@@ -1,5 +1,11 @@
 <?php
+// index.php
 session_start();
+
+// Явное определение переменных, чтобы избежать Undefined variable
+$is_auth = isset($_SESSION['user_id']);
+$is_admin = $is_auth && ($_SESSION['role_id'] == 2);
+$fio = $_SESSION['fio'] ?? 'Гость';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -14,25 +20,25 @@ session_start();
 
 <body>
     <header>
-        <h1>Учебный портал (Лаб 3)</h1>
+        <h1>Учебный портал (Лаб 4)</h1>
     </header>
 
     <main>
-        <?php if (isset($_SESSION['user_id'])): ?>
+        <?php if ($is_auth): ?>
             <div class="user-panel">
-                <h2>Привет, <?= htmlspecialchars($_SESSION['fio']) ?>!</h2>
+                <h2>Привет, <?= htmlspecialchars($fio) ?>!</h2>
 
                 <nav>
                     <ul>
-                        <li><a href="./profile.php">👤 Мой профиль</a></li>
-                        <li><a href="./applications/application.php">📝 Подать заявку на курс</a></li>
-                        <li><a href="./reviews/reviews.php">⭐ Оставить отзыв</a></li>
+                        <li><a href="./profile.php">🗂️ Мой профиль и заявки</a></li>
+                        <li><a href="./applications/application.php">📝 Подать заявку на курс / Просмотр отзывов</a></li>
+                        <li><a href="./reviews/reviews.php">⭐ Оставить отзыв о завершенном курсе</a></li>
 
-                        <?php if (isset($_SESSION['role_id']) && $_SESSION['role_id'] == 2): ?>
-                            <li><a href="./admin/index.php" style="color: red; font-weight: bold;">⚙️ Админ-панель</a></li>
+                        <?php if ($is_admin): ?>
+                            <li><a href="./admin/index.php" style="color: red; font-weight: bold;">👑 Админ-панель (Управление заявками)</a></li>
                         <?php endif; ?>
 
-                        <li><a href="./auth/logout.php">Выход</a></li>
+                        <li><a href="./auth/logout.php" class="btn">Выход</a></li>
                     </ul>
                 </nav>
             </div>
