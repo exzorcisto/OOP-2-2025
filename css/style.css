@@ -1,0 +1,210 @@
+/* ================================================= */
+/* 1. БАЗОВЫЕ СТИЛИ И ШРИФТЫ */
+/* ================================================= */
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f4f7f6;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+header {
+    background-color: #007bff;
+    color: white;
+    padding: 20px 0;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+}
+
+h1,
+h3 {
+    font-family: 'Montserrat', sans-serif;
+    color: #ffffff;
+    margin-top: 20px;
+}
+
+h2 {
+    font-family: 'Montserrat', sans-serif;
+    color: #007bff;
+    margin-top: 20px;
+}
+
+/* ================================================= */
+/* 2. НАВИГАЦИЯ И КНОПКИ */
+/* ================================================= */
+
+a {
+    color: #007bff;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+a:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+.user-panel,
+.guest-panel {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.user-panel nav ul {
+    list-style: none;
+    padding: 0;
+}
+
+.user-panel nav li {
+    margin: 10px 0;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.btn,
+input[type="submit"] {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+    margin: 5px;
+    text-transform: uppercase;
+}
+
+input[type="submit"]:hover,
+.btn:hover {
+    background-color: #218838;
+}
+
+/* Стили для ссылок-кнопок на главной */
+.guest-panel a.btn {
+    background-color: #007bff;
+}
+
+.guest-panel a.btn:hover {
+    background-color: #0056b3;
+}
+
+a.btn:hover {
+    color: #ffffff;
+}
+
+/* ================================================= */
+/* 3. ФОРМЫ */
+/* ================================================= */
+
+form {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 400px;
+    margin: 20px 0;
+}
+
+input[type="email"],
+input[type="text"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0 15px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+textarea {
+    resize: vertical;
+}
+
+/* ================================================= */
+/* 4. ТАБЛИЦЫ И ОТЗЫВЫ */
+/* ================================================= */
+
+table {
+    width: 100%;
+    max-width: 800px;
+    border-collapse: collapse;
+    margin: 25px 0;
+    font-size: 0.9em;
+    min-width: 400px;
+    background: white;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+
+table th,
+table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+table th {
+    background-color: #007bff;
+    color: white;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+table tr:nth-of-type(even) {
+    background-color: #f3f3f3;
+}
+
+.review-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 15px;
+}
+
+.review-list li {
+    background: #e9f7ef;
+    /* Светло-зеленый для отзывов */
+    border-left: 5px solid #28a745;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+}
+
+/* Стили для статусов */
+strong {
+    font-weight: bold;
+}
+
+strong:contains('pending') {
+    color: orange;
+}
+
+strong:contains('approved') {
+    color: blue;
+}
+
+strong:contains('completed') {
+    color: green;
+}
+
+strong:contains('rejected') {
+    color: red;
+}
