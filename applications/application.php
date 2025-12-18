@@ -7,16 +7,12 @@ if (!isset($_SESSION['user_id'])) {
     die("Пожалуйста, <a href='../auth/login.php'>войдите</a> в систему.");
 }
 
-// ===============================================
-// 1. ФУНКЦИЯ ОТОБРАЖЕНИЯ ОТЗЫВОВ (оставляем без изменений)
-// ===============================================
+// 1. ФУНКЦИЯ ОТОБРАЖЕНИЯ ОТЗЫВОВ
 
 function display_reviews($conn, $course_id)
 {
-    // ... (код функции display_reviews остается прежним) ...
     echo '<h2>Отзывы о курсе</h2>';
 
-    // Запрос с JOIN для получения имени пользователя и текста отзыва
     $review_sql = "SELECT r.rating, r.comment, u.fio_user 
                    FROM reviews r 
                    JOIN users u ON r.user_id = u.id 
@@ -41,16 +37,14 @@ function display_reviews($conn, $course_id)
 }
 
 
-// ===============================================
 // 2. ОБРАБОТКА POST (ОТПРАВКА ЗАЯВКИ)
-// ===============================================
 
 $message = null;
 
-// Если форма отправлена И действие = 'submit_application' (пользователь нажал кнопку)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_application') {
     $user_id = $_SESSION['user_id'];
     $course_id = $_POST['course_id'];
+    $start_date = $_POST['start_date']; // Получаем выбранную дату
 
     // Проверка, нет ли уже активной заявки на этот курс
     $check_stmt = $conn->prepare("SELECT id FROM applications WHERE user_id = ? AND course_id = ? AND status IN ('pending', 'approved')");
@@ -59,11 +53,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $check_result = $check_stmt->get_result();
 
     if ($check_result->num_rows == 0) {
-        $stmt = $conn->prepare("INSERT INTO applications (user_id, course_id) VALUES (?, ?)");
-        $stmt->bind_param("ii", $user_id, $course_id);
+        // Добавляем start_date в INSERT
+        $stmt = $conn->prepare("INSERT INTO applications (user_id, course_id, start_date) VALUES (?, ?, ?)");
+        $stmt->bind_param("iis", $user_id, $course_id, $start_date);
 
         if ($stmt->execute()) {
-            $message = "✅ Заявка успешно отправлена и ожидает рассмотрения!";
+            $message = "✅ Заявка успешно отправлена на " . date("d.m.Y", strtotime($start_date)) . " и ожидает рассмотрения!";
         } else {
             $message = "❌ Ошибка при отправке заявки: " . $conn->error;
         }
@@ -73,25 +68,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 
-// ===============================================
-// 3. ПОЛУЧЕНИЕ ДАННЫХ ДЛЯ ВЫВОДА
-// ===============================================
 
-// Получаем список курсов
+// 3. ПОЛУЧЕНИЕ ДАННЫХ ДЛЯ ВЫВОДА
 $courses_result = $conn->query("SELECT * FROM courses");
 $courses = [];
 while ($row = $courses_result->fetch_assoc()) {
     $courses[] = $row;
 }
 
-
-// Определяем, какой курс отображать: либо выбранный, либо первый по умолчанию
 $selected_course_id = null;
 if (!empty($courses)) {
     if (isset($_POST['course_id'])) {
         $selected_course_id = $_POST['course_id'];
     } else {
-        $selected_course_id = $courses[0]['id']; // Первый курс по умолчанию
+        $selected_course_id = $courses[0]['id'];
     }
 }
 
@@ -106,7 +96,6 @@ if (!empty($courses)) {
     <link rel="stylesheet" href="../css/style.css">
     <script>
         function updateReviews() {
-            // Отправляет форму "update_reviews"
             document.getElementById('update-form').submit();
         }
     </script>
@@ -144,6 +133,9 @@ if (!empty($courses)) {
         </select>
 
         <?php if (!empty($courses)): ?>
+            <br><br>
+            <label for="start_date">Желаемая дата начала обучения:</label><br>
+            <input type="date" name="start_date" id="start_date" required min="<?= date('Y-m-d') ?>">
             <br><br>
             <input type="submit" value="Отправить заявку на курс">
         <?php else: ?>

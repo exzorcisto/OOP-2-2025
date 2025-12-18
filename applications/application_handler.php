@@ -9,9 +9,11 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 $course_id = $_POST['course_id'];
+$start_date = $_POST['start_date']; // Получаем дату из POST-запроса
 
-$stmt = $conn->prepare("INSERT INTO applications (user_id, course_id) VALUES (?, ?)");
-$stmt->bind_param("ii", $user_id, $course_id);
+// Обновляем запрос: добавляем колонку start_date и подготавливаем 3 параметра
+$stmt = $conn->prepare("INSERT INTO applications (user_id, course_id, start_date) VALUES (?, ?, ?)");
+$stmt->bind_param("iis", $user_id, $course_id, $start_date);
 
 if ($stmt->execute()) {
     echo "Заявка успешно отправлена! <a href='../index.php'>На главную</a>";
