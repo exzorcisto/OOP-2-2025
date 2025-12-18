@@ -20,16 +20,11 @@ $course = new Course($db);
 $review_obj = new Review($db);
 $application_obj = new Application($db);
 
-// Сообщение о результате операции (если оно было установлено ранее)
 $message = null;
 
-// ===============================================
 // 1. ФУНКЦИЯ ОТОБРАЖЕНИЯ ОТЗЫВОВ (ООП)
-// ===============================================
-
 function display_reviews($review_obj, $course_id)
 {
-    // Устанавливаем ID курса для выборки
     $review_obj->course_id = $course_id;
     $stmt = $review_obj->getReviewsByCourseId();
     $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -50,48 +45,39 @@ function display_reviews($review_obj, $course_id)
     }
 }
 
-// ===============================================
-// 2. ОБРАБОТКА POST (ОТПРАВКА ЗАЯВКИ ИЛИ ОБНОВЛЕНИЕ ОТЗЫВОВ)
-// ===============================================
-
+// 2. ОБРАБОТКА POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
     $application_obj->course_id = $_POST['course_id'];
 
     if (isset($_POST['action']) && $_POST['action'] === 'submit_application') {
-        // --- Логика отправки заявки ---
         $application_obj->user_id = $_SESSION['user_id'];
+        // Сохраняем дату из формы в свойство объекта
+        $application_obj->start_date = $_POST['start_date'];
 
         if ($application_obj->checkActiveApplication()) {
             $message = "⚠️ У вас уже есть активная заявка на этот курс.";
         } elseif ($application_obj->create()) {
-            $message = "✅ Заявка успешно отправлена и ожидает рассмотрения!";
+            // Форматируем дату для вывода в сообщении
+            $formatted_date = date("d.m.Y", strtotime($application_obj->start_date));
+            $message = "✅ Заявка на $formatted_date успешно отправлена и ожидает рассмотрения!";
         } else {
             $message = "❌ Ошибка при отправке заявки.";
         }
     }
-    // Если action == update_reviews, мы просто переходим к п.3, 
-    // чтобы обновился $selected_course_id и отобразились отзывы.
 }
 
-// ===============================================
 // 3. ПОЛУЧЕНИЕ ДАННЫХ ДЛЯ ВЫВОДА
-// ===============================================
-
-// Получаем список курсов
 $course_stmt = $course->readAll();
 $courses = $course_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $selected_course_id = null;
 if (!empty($courses)) {
-    // Определяем ID выбранного курса (для отображения отзывов)
     if (isset($_POST['course_id'])) {
         $selected_course_id = $_POST['course_id'];
     } else {
-        $selected_course_id = $courses[0]['id']; // Первый курс по умолчанию
+        $selected_course_id = $courses[0]['id'];
     }
 }
-
 ?>
 
 <!DOCTYPE html>
@@ -103,7 +89,6 @@ if (!empty($courses)) {
     <link rel="stylesheet" href="../css/style.css">
     <script>
         function updateReviews() {
-            // Отправляет форму "update-form"
             document.getElementById('update-form').submit();
         }
     </script>
@@ -116,7 +101,9 @@ if (!empty($courses)) {
     <a href="../index.php">На главную</a>
 
     <?php if (isset($message)): ?>
-        <p style="padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9;"><?= $message ?></p>
+        <div class="alert" style="padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; margin: 10px 0; border-radius: 5px;">
+            <?= $message ?>
+        </div>
     <?php endif; ?>
 
     <form id="update-form" method="post" style="display: none;">
@@ -141,6 +128,9 @@ if (!empty($courses)) {
         </select>
 
         <?php if (!empty($courses)): ?>
+            <br><br>
+            <label for="start_date">Желаемая дата начала обучения:</label><br>
+            <input type="date" name="start_date" id="start_date" required min="<?= date('Y-m-d') ?>">
             <br><br>
             <input type="submit" value="Отправить заявку на курс">
         <?php else: ?>

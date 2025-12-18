@@ -22,9 +22,9 @@ $user->password = $_POST['password'];
 // 3. Вызов метода login
 if ($user->login()) {
     // Успех: записываем данные в сессию ИЗ СВОЙСТВ ОБЪЕКТА
-    $_SESSION['user_id'] = $user->id;       // <-- ИСПРАВЛЕНО
-    $_SESSION['role_id'] = $user->role_id; // <-- ИСПРАВЛЕНО
-    $_SESSION['fio'] = $user->fio_user;   // <-- ИСПРАВЛЕНО
+    $_SESSION['user_id'] = $user->id;
+    $_SESSION['role_id'] = $user->role_id;
+    $_SESSION['fio'] = $user->fio_user;
 
     // Перенаправление в зависимости от роли
     if ($user->role_id == 2) {

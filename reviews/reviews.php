@@ -20,9 +20,7 @@ $db = $database->getConnection();
 $review = new Review($db);
 $review->user_id = $user_id;
 
-// ===============================================
 // 1. ОБРАБОТКА POST (ОТПРАВКА ОТЗЫВА)
-// ===============================================
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Передача данных из формы в объект
@@ -42,9 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// ===============================================
 // 2. ПОЛУЧЕНИЕ КУРСОВ ДЛЯ ОТЗЫВА (Условная логика)
-// ===============================================
 
 $courses_stmt = $review->getCoursesAvailableForReview();
 $courses_to_review = $courses_stmt->fetchAll(PDO::FETCH_ASSOC);
