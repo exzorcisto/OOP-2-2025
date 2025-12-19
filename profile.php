@@ -9,9 +9,9 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Запрос 1: Получение заявок пользователя
 $app_sql = "SELECT 
                 c.title AS course_title, 
+                a.start_date, 
                 a.status,
                 a.created_at 
             FROM applications a 
@@ -57,12 +57,14 @@ $reviews = $rev_stmt->get_result();
     <table border="1">
         <tr>
             <th>Курс</th>
+            <th>Дата старта</th>
             <th>Статус</th>
             <th>Дата подачи</th>
         </tr>
         <?php while ($row = $applications->fetch_assoc()): ?>
             <tr>
                 <td><?= htmlspecialchars($row['course_title']) ?></td>
+                <td><?= $row['start_date'] ? date("d.m.Y", strtotime($row['start_date'])) : '—' ?></td>
                 <td><strong><?= $row['status'] ?></strong></td>
                 <td><?= $row['created_at'] ?></td>
             </tr>
