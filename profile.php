@@ -9,13 +9,17 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
+// Запрос 1: Получение заявок с названиями статуса и метода оплаты
 $app_sql = "SELECT 
                 c.title AS course_title, 
                 a.start_date, 
-                a.status,
+                s.name AS status_name,
+                pm.method_name AS payment_name,
                 a.created_at 
             FROM applications a 
             JOIN courses c ON a.course_id = c.id 
+            JOIN statuses s ON a.status_id = s.id
+            JOIN payment_methods pm ON a.payment_method_id = pm.id
             WHERE a.user_id = ?
             ORDER BY a.created_at DESC";
 $app_stmt = $conn->prepare($app_sql);
@@ -23,7 +27,7 @@ $app_stmt->bind_param("i", $user_id);
 $app_stmt->execute();
 $applications = $app_stmt->get_result();
 
-// Запрос 2: Получение отзывов пользователя
+// Запрос 2: Получение отзывов пользователя (без изменений)
 $rev_sql = "SELECT 
                 c.title AS course_title, 
                 r.rating, 
@@ -58,6 +62,7 @@ $reviews = $rev_stmt->get_result();
         <tr>
             <th>Курс</th>
             <th>Дата старта</th>
+            <th>Оплата</th>
             <th>Статус</th>
             <th>Дата подачи</th>
         </tr>
@@ -65,8 +70,9 @@ $reviews = $rev_stmt->get_result();
             <tr>
                 <td><?= htmlspecialchars($row['course_title']) ?></td>
                 <td><?= $row['start_date'] ? date("d.m.Y", strtotime($row['start_date'])) : '—' ?></td>
-                <td><strong><?= $row['status'] ?></strong></td>
-                <td><?= $row['created_at'] ?></td>
+                <td><?= htmlspecialchars($row['payment_name']) ?></td>
+                <td><strong><?= htmlspecialchars($row['status_name']) ?></strong></td>
+                <td><?= date("d.m.Y H:i", strtotime($row['created_at'])) ?></td>
             </tr>
         <?php endwhile; ?>
     </table>
@@ -82,9 +88,9 @@ $reviews = $rev_stmt->get_result();
         <?php while ($row = $reviews->fetch_assoc()): ?>
             <tr>
                 <td><?= htmlspecialchars($row['course_title']) ?></td>
-                <td><?= $row['rating'] ?> ⭐</td>
+                <td><?= str_repeat('⭐', $row['rating']) ?></td>
                 <td><?= htmlspecialchars($row['comment']) ?></td>
-                <td><?= $row['created_at'] ?></td>
+                <td><?= date("d.m.Y", strtotime($row['created_at'])) ?></td>
             </tr>
         <?php endwhile; ?>
     </table>
