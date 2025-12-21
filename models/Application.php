@@ -6,114 +6,103 @@ class Application
     private $conn;
     private $table = "applications";
 
-    // Свойства
     public $id;
     public $user_id;
     public $course_id;
-    public $start_date; // Новое свойство для хранения даты начала
-    public $status = 'pending';
+    public $start_date;
+    public $status_id = 1; // 1 - Новое
+    public $payment_method_id;
+    public $created_at;
 
     public function __construct($db)
     {
         $this->conn = $db;
     }
 
-    // Создание новой заявки с учетом даты начала
     public function create()
     {
         $query = "INSERT INTO " . $this->table . " 
-                  SET user_id=:user_id, course_id=:course_id, start_date=:start_date, status=:status";
+                  SET user_id=:user_id, course_id=:course_id, start_date=:start_date, 
+                      status_id=:status_id, payment_method_id=:payment_method_id";
         $stmt = $this->conn->prepare($query);
-
         $stmt->bindParam(":user_id", $this->user_id);
         $stmt->bindParam(":course_id", $this->course_id);
-        $stmt->bindParam(":start_date", $this->start_date); // Привязка даты начала
-        $stmt->bindParam(":status", $this->status);
-
+        $stmt->bindParam(":start_date", $this->start_date);
+        $stmt->bindParam(":status_id", $this->status_id);
+        $stmt->bindParam(":payment_method_id", $this->payment_method_id);
         return $stmt->execute();
     }
 
-    // Проверка активной заявки (для предотвращения дубликатов)
-    public function checkActiveApplication()
-    {
-        $query = "SELECT id FROM " . $this->table . " 
-                  WHERE user_id = :user_id AND course_id = :course_id AND status IN ('pending', 'approved')";
-        $stmt = $this->conn->prepare($query);
-
-        $stmt->bindParam(":user_id", $this->user_id);
-        $stmt->bindParam(":course_id", $this->course_id);
-        $stmt->execute();
-
-        return $stmt->rowCount() > 0;
-    }
-
-    // Тот самый метод для profile.php: получение заявок конкретного пользователя
     public function getApplicationsByUserId()
     {
-        // Добавлено поле a.start_date в выборку
-        $query = "SELECT a.id, c.title as course_title, a.start_date, a.status, a.created_at
-                  FROM " . $this->table . " a
-                  JOIN courses c ON a.course_id = c.id
-                  WHERE a.user_id = :user_id
+        $query = "SELECT a.*, c.title AS course_title, s.name AS status_name, 
+                         pm.method_name AS payment_method_name 
+                  FROM " . $this->table . " a 
+                  JOIN courses c ON a.course_id = c.id 
+                  JOIN statuses s ON a.status_id = s.id
+                  LEFT JOIN payment_methods pm ON a.payment_method_id = pm.id
+                  WHERE a.user_id = :user_id 
                   ORDER BY a.created_at DESC";
-
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(":user_id", $this->user_id);
         $stmt->execute();
-
         return $stmt;
     }
 
-    // Получение всех заявок с поддержкой фильтрации и пагинации (для админки)
-    public function getAllWithDetails($status = null, $limit = null, $offset = null)
+    public function readAll($status_id = null, $limit = null, $offset = null)
     {
-        $query = "SELECT a.id, u.fio_user, c.title AS course_title, a.start_date, a.status, a.created_at 
-                  FROM " . $this->table . " a 
-                  JOIN users u ON a.user_id = u.id 
-                  JOIN courses c ON a.course_id = c.id";
-
-        if ($status) {
-            $query .= " WHERE a.status = :status";
-        }
-
+        $query = "SELECT a.*, u.fio_user, c.title AS course_title, s.name AS status_name, 
+                         pm.method_name AS payment_method
+                  FROM " . $this->table . " a
+                  JOIN users u ON a.user_id = u.id
+                  JOIN courses c ON a.course_id = c.id
+                  JOIN statuses s ON a.status_id = s.id
+                  JOIN payment_methods pm ON a.payment_method_id = pm.id";
+        if ($status_id) $query .= " WHERE a.status_id = :status_id";
         $query .= " ORDER BY a.created_at DESC";
-
-        if ($limit !== null && $offset !== null) {
-            $query .= " LIMIT :limit OFFSET :offset";
-        }
+        if ($limit !== null) $query .= " LIMIT :limit OFFSET :offset";
 
         $stmt = $this->conn->prepare($query);
-
-        if ($status) $stmt->bindParam(":status", $status);
-        if ($limit !== null) $stmt->bindValue(":limit", (int)$limit, PDO::PARAM_INT);
-        if ($offset !== null) $stmt->bindValue(":offset", (int)$offset, PDO::PARAM_INT);
-
+        if ($status_id) $stmt->bindParam(":status_id", $status_id);
+        if ($limit !== null) {
+            $stmt->bindValue(":limit", (int)$limit, PDO::PARAM_INT);
+            $stmt->bindValue(":offset", (int)$offset, PDO::PARAM_INT);
+        }
         $stmt->execute();
         return $stmt;
     }
 
-    // Подсчет общего количества заявок для работы пагинации
-    public function countAll($status = null)
+    public function countAll($status_id = null)
     {
         $query = "SELECT COUNT(*) as total FROM " . $this->table;
-        if ($status) $query .= " WHERE status = :status";
-
+        if ($status_id) $query .= " WHERE status_id = :status_id";
         $stmt = $this->conn->prepare($query);
-        if ($status) $stmt->bindParam(":status", $status);
+        if ($status_id) $stmt->bindParam(":status_id", $status_id);
         $stmt->execute();
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row['total'];
+        return $stmt->fetch(PDO::FETCH_ASSOC)['total'];
     }
 
-    // Обновление статуса заявки
-    public function updateStatus($new_status)
+    public function updateStatus($new_status_id)
     {
-        $query = "UPDATE " . $this->table . " SET status = :new_status WHERE id = :id";
+        $query = "UPDATE " . $this->table . " SET status_id = :status_id WHERE id = :id";
         $stmt = $this->conn->prepare($query);
-
-        $stmt->bindParam(":new_status", $new_status);
+        $stmt->bindParam(":status_id", $new_status_id);
         $stmt->bindParam(":id", $this->id);
-
         return $stmt->execute();
+    }
+
+    public function getPaymentMethods()
+    {
+        return $this->conn->query("SELECT * FROM payment_methods");
+    }
+
+    public function checkActiveApplication()
+    {
+        $query = "SELECT id FROM " . $this->table . " WHERE user_id = :user_id AND course_id = :course_id AND status_id IN (1, 2)";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(":user_id", $this->user_id);
+        $stmt->bindParam(":course_id", $this->course_id);
+        $stmt->execute();
+        return $stmt->rowCount() > 0;
     }
 }

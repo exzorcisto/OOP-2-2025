@@ -1,50 +1,52 @@
 <?php
 // reviews/reviews.php
 session_start();
-// Подключаем классы
+
+// Включаем отображение ошибок, чтобы не было просто пустого экрана
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 include_once '../models/Database.php';
 include_once '../models/Review.php';
 
-// Если не вошел — отправляем на вход
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../auth/login.php");
     exit;
 }
 
 $user_id = $_SESSION['user_id'];
-$error_message = null;
-
-// Создание объектов
 $database = new Database();
 $db = $database->getConnection();
-$review = new Review($db);
-$review->user_id = $user_id;
+$review_obj = new Review($db);
+$review_obj->user_id = $user_id;
 
-// 1. ОБРАБОТКА POST (ОТПРАВКА ОТЗЫВА)
+$message = null;
 
+// Обработка формы
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Передача данных из формы в объект
-    $review->course_id = $_POST['course_id'] ?? null;
-    $review->rating = $_POST['rating'] ?? null;
-    $review->comment = $_POST['comment'] ?? null;
+    $review_obj->course_id = $_POST['course_id'] ?? null;
+    $review_obj->rating = $_POST['rating'] ?? null;
+    $review_obj->comment = $_POST['comment'] ?? null;
 
-    if (empty($review->course_id) || empty($review->rating) || empty($review->comment)) {
-        $error_message = "Пожалуйста, заполните все поля.";
-    } else {
-        if ($review->create()) {
-            header("Location: ../profile.php"); // Перенаправляем в профиль после успешного отзыва
+    if ($review_obj->course_id && $review_obj->rating && $review_obj->comment) {
+        if ($review_obj->create()) {
+            header("Location: ../profile.php");
             exit;
         } else {
-            $error_message = "Ошибка при сохранении отзыва. Возможно, вы уже оставляли отзыв на этот курс.";
+            $message = "❌ Ошибка при сохранении.";
         }
+    } else {
+        $message = "⚠️ Заполните все поля.";
     }
 }
 
-// 2. ПОЛУЧЕНИЕ КУРСОВ ДЛЯ ОТЗЫВА (Условная логика)
-
-$courses_stmt = $review->getCoursesAvailableForReview();
-$courses_to_review = $courses_stmt->fetchAll(PDO::FETCH_ASSOC);
-
+// Получаем список доступных курсов
+try {
+    $courses_stmt = $review_obj->getCoursesAvailableForReview();
+    $courses_to_review = $courses_stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    die("Ошибка БД: " . $e->getMessage());
+}
 ?>
 
 <!DOCTYPE html>
@@ -58,38 +60,41 @@ $courses_to_review = $courses_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <body>
     <header>
-        <h1>Оставить отзыв о курсе</h1>
+        <h1>Оставить отзыв</h1>
     </header>
-    <a href="../index.php">На главную</a>
-
-    <?php if (isset($error_message)): ?>
-        <p style="color: red; padding: 10px; border: 1px solid red;"><?= $error_message ?></p>
+    <nav style="text-align:center;"><a href="../index.php">🏠 На главную</a></nav>
+    <?php if ($message): ?>
+        <p style="color:red;"><?= $message ?></p>
     <?php endif; ?>
 
     <?php if (!empty($courses_to_review)): ?>
-        <form action="reviews.php" method="post">
-            <label>Выберите курс (только завершенные):</label>
-            <select name="course_id" required>
-                <?php foreach ($courses_to_review as $row): ?>
-                    <option value="<?= $row['id'] ?>"><?= htmlspecialchars($row['title']) ?></option>
+        <form method="post">
+            <label>Курс:</label><br>
+            <select name="course_id" style="width:100%; padding:8px;">
+                <?php foreach ($courses_to_review as $c): ?>
+                    <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['title']) ?></option>
                 <?php endforeach; ?>
-            </select>
-            <br><br>
+            </select><br><br>
 
-            <label>Оценка (1-5):</label>
-            <input type="number" name="rating" min="1" max="5" value="5" required>
-            <br><br>
+            <label>Оценка:</label><br>
+            <select name="rating" style="width:100%; padding:8px;">
+                <option value="5">⭐⭐⭐⭐⭐ (5)</option>
+                <option value="4">⭐⭐⭐⭐ (4)</option>
+                <option value="3">⭐⭐⭐ (3)</option>
+                <option value="2">⭐⭐ (2)</option>
+                <option value="1">⭐ (1)</option>
+            </select><br><br>
 
-            <textarea name="comment" placeholder="Напишите, что вы думаете..." rows="5" cols="30" required></textarea>
-            <br><br>
+            <label>Комментарий:</label><br>
+            <textarea name="comment" rows="5" style="width:100%; padding:8px;" required></textarea><br><br>
 
-            <input type="submit" value="Отправить отзыв">
+            <input type="submit" value="Отправить отзыв" class="btn" style="width:100%;">
         </form>
     <?php else: ?>
-        <p style="color: grey; font-weight: bold;">
-            На данный момент у вас нет завершенных курсов, на которые вы не оставили отзыв.
-            Пожалуйста, дождитесь, пока администратор отметит вашу заявку как "Завершено".
-        </p>
+        <div style="background:#f9f9f9; padding:20px; border:1px solid #ccc;">
+            На данный момент у вас нет завершенных курсов для отзыва.<br>
+            <small>(Статус вашей заявки должен быть "Завершено")</small>
+        </div>
     <?php endif; ?>
 </body>
 

@@ -1,28 +1,51 @@
 <?php
 // applications/application.php
 session_start();
-// Подключаем классы
 include_once '../models/Database.php';
 include_once '../models/Course.php';
 include_once '../models/Review.php';
 include_once '../models/Application.php';
 
-// Проверка авторизации
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../auth/login.php");
     exit;
 }
 
-// Создание объектов
 $database = new Database();
 $db = $database->getConnection();
-$course = new Course($db);
+
+$course_obj = new Course($db);
 $review_obj = new Review($db);
 $application_obj = new Application($db);
 
 $message = null;
 
-// 1. ФУНКЦИЯ ОТОБРАЖЕНИЯ ОТЗЫВОВ (ООП)
+// Обработка отправки
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_application') {
+    if (empty($_POST['start_date']) || empty($_POST['payment_method_id'])) {
+        $message = "⚠️ Заполните все поля!";
+    } else {
+        $application_obj->user_id = $_SESSION['user_id'];
+        $application_obj->course_id = $_POST['course_id'];
+        $application_obj->start_date = $_POST['start_date'];
+        $application_obj->payment_method_id = $_POST['payment_method_id'];
+        $application_obj->status_id = 1;
+
+        if ($application_obj->checkActiveApplication()) {
+            $message = "⚠️ У вас уже есть активная заявка.";
+        } else {
+            if ($application_obj->create()) {
+                $message = "✅ Заявка отправлена!";
+            }
+        }
+    }
+}
+
+$courses = $course_obj->readAll()->fetchAll(PDO::FETCH_ASSOC);
+$payments = $application_obj->getPaymentMethods()->fetchAll(PDO::FETCH_ASSOC);
+$selected_course_id = $_POST['course_id'] ?? ($courses[0]['id'] ?? null);
+
+// Функция отображения отзывов с ОЦЕНКОЙ
 function display_reviews($review_obj, $course_id)
 {
     $review_obj->course_id = $course_id;
@@ -30,52 +53,19 @@ function display_reviews($review_obj, $course_id)
     $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo '<h2>Отзывы о курсе</h2>';
-
     if (count($reviews) > 0) {
-        echo '<ul class="review-list">';
-        foreach ($reviews as $review) {
-            echo '<li>';
-            echo '<strong>' . htmlspecialchars($review['fio_user']) . '</strong> (Оценка: ' . str_repeat('⭐', $review['rating']) . '): ';
-            echo htmlspecialchars($review['comment']);
-            echo '</li>';
+        echo '<ul style="list-style:none; padding:0;">';
+        foreach ($reviews as $rev) {
+            $stars = str_repeat('⭐', $rev['rating']);
+            echo "<li style='border-bottom:1px solid #ddd; margin-bottom:10px; padding-bottom:10px;'>";
+            echo "<strong>" . htmlspecialchars($rev['fio_user']) . "</strong> ";
+            echo "<span style='color:orange;'>$stars</span><br>"; // Вывод оценки
+            echo "<em>" . htmlspecialchars($rev['comment']) . "</em>";
+            echo "</li>";
         }
         echo '</ul>';
     } else {
-        echo '<p>Отзывов пока нет. Будьте первыми!</p>';
-    }
-}
-
-// 2. ОБРАБОТКА POST
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $application_obj->course_id = $_POST['course_id'];
-
-    if (isset($_POST['action']) && $_POST['action'] === 'submit_application') {
-        $application_obj->user_id = $_SESSION['user_id'];
-        // Сохраняем дату из формы в свойство объекта
-        $application_obj->start_date = $_POST['start_date'];
-
-        if ($application_obj->checkActiveApplication()) {
-            $message = "⚠️ У вас уже есть активная заявка на этот курс.";
-        } elseif ($application_obj->create()) {
-            // Форматируем дату для вывода в сообщении
-            $formatted_date = date("d.m.Y", strtotime($application_obj->start_date));
-            $message = "✅ Заявка на $formatted_date успешно отправлена и ожидает рассмотрения!";
-        } else {
-            $message = "❌ Ошибка при отправке заявки.";
-        }
-    }
-}
-
-// 3. ПОЛУЧЕНИЕ ДАННЫХ ДЛЯ ВЫВОДА
-$course_stmt = $course->readAll();
-$courses = $course_stmt->fetchAll(PDO::FETCH_ASSOC);
-
-$selected_course_id = null;
-if (!empty($courses)) {
-    if (isset($_POST['course_id'])) {
-        $selected_course_id = $_POST['course_id'];
-    } else {
-        $selected_course_id = $courses[0]['id'];
+        echo '<p>Отзывов пока нет.</p>';
     }
 }
 ?>
@@ -85,10 +75,11 @@ if (!empty($courses)) {
 
 <head>
     <meta charset="UTF-8">
-    <title>Подача заявки</title>
+    <title>Заявка на курс</title>
     <link rel="stylesheet" href="../css/style.css">
     <script>
         function updateReviews() {
+            document.getElementById('hidden-course-id').value = document.getElementById('main-course-select').value;
             document.getElementById('update-form').submit();
         }
     </script>
@@ -96,55 +87,44 @@ if (!empty($courses)) {
 
 <body>
     <header>
-        <h1>Подача заявки на курс</h1>
+        <h1>Заявка на обучение</h1>
     </header>
-    <a href="../index.php">На главную</a>
+    <nav style="text-align:center;"><a href="../index.php">🏠 На главную</a></nav>
 
-    <?php if (isset($message)): ?>
-        <div class="alert" style="padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; margin: 10px 0; border-radius: 5px;">
-            <?= $message ?>
-        </div>
-    <?php endif; ?>
+    <?php if ($message) echo "<p style='text-align:center;'>$message</p>"; ?>
 
-    <form id="update-form" method="post" style="display: none;">
+    <form id="update-form" method="post" style="display:none;">
         <input type="hidden" name="action" value="update_reviews">
         <input type="hidden" name="course_id" id="hidden-course-id">
     </form>
-
     <form method="post">
         <input type="hidden" name="action" value="submit_application">
 
-        <label>Выберите курс:</label>
-        <select name="course_id" onchange="document.getElementById('hidden-course-id').value = this.value; updateReviews();" required>
-            <?php if (!empty($courses)): ?>
-                <?php foreach ($courses as $row): ?>
-                    <option value="<?= $row['id'] ?>" <?= ($row['id'] == $selected_course_id) ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($row['title']) ?>
-                    </option>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <option value="" disabled selected>Нет доступных курсов</option>
-            <?php endif; ?>
-        </select>
+        <label>Курс:</label><br>
+        <select name="course_id" id="main-course-select" onchange="updateReviews()" style="width:100%;">
+            <?php foreach ($courses as $c): ?>
+                <option value="<?= $c['id'] ?>" <?= $c['id'] == $selected_course_id ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($c['title']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select><br><br>
 
-        <?php if (!empty($courses)): ?>
-            <br><br>
-            <label for="start_date">Желаемая дата начала обучения:</label><br>
-            <input type="date" name="start_date" id="start_date" required min="<?= date('Y-m-d') ?>">
-            <br><br>
-            <input type="submit" value="Отправить заявку на курс">
-        <?php else: ?>
-            <p>Нельзя подать заявку, пока администратор не добавит курсы.</p>
-        <?php endif; ?>
+        <label>Дата старта:</label><br>
+        <input type="date" name="start_date" required min="<?= date('Y-m-d') ?>" style="width:100%;"><br><br>
+
+        <label>Способ оплаты:</label><br>
+        <select name="payment_method_id" required style="width:100%;">
+            <option value="" disabled selected>-- Выберите способ --</option>
+            <?php foreach ($payments as $p): ?>
+                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['method_name']) ?></option>
+            <?php endforeach; ?>
+        </select><br><br>
+
+        <input type="submit" value="Подать заявку" class="btn" style="width:100%;">
     </form>
 
-    <hr>
-
-    <?php
-    if ($selected_course_id) {
-        display_reviews($review_obj, $selected_course_id);
-    }
-    ?>
+    <hr style="margin:20px 0;">
+    <?php if ($selected_course_id) display_reviews($review_obj, $selected_course_id); ?>
 </body>
 
 </html>
