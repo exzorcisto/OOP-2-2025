@@ -1,7 +1,6 @@
 <?php
 // models/Review.php
 
-// Используем include_once, чтобы избежать ошибки "Cannot redeclare class Application"
 include_once 'Application.php';
 
 class Review
@@ -62,7 +61,6 @@ class Review
 
     public function getCoursesAvailableForReview()
     {
-        // Проверьте, что в таблице statuses ID завершенного курса равен 3
         $query = "SELECT c.id, c.title 
                   FROM courses c
                   JOIN applications a ON a.course_id = c.id

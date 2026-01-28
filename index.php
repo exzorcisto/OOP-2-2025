@@ -2,7 +2,6 @@
 // index.php
 session_start();
 
-// Явное определение переменных, чтобы избежать Undefined variable
 $is_auth = isset($_SESSION['user_id']);
 $is_admin = $is_auth && ($_SESSION['role_id'] == 2);
 $fio = $_SESSION['fio'] ?? 'Гость';
@@ -13,7 +12,7 @@ $fio = $_SESSION['fio'] ?? 'Гость';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Лаб 3 - Главная</title>
+    <title>Лаб 4 - Главная</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./css/style.css">
 </head>
